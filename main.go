@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ func main() {
 		log.Fatal("Error: ", err)
 	}
 	buffer := make([]byte, 8)
+	contents := make([]byte, 0)
 	for {
 		numBytesRead, err := file.Read(buffer)
 		if err != nil {
@@ -25,6 +27,16 @@ func main() {
 				log.Fatal("Error: ", err)
 			}
 		}
-		fmt.Printf("read: %s\n", buffer[:numBytesRead])
+		if newlineIndex := bytes.IndexByte(buffer[:numBytesRead], '\n'); newlineIndex != -1 {
+			contents = append(contents, buffer[:newlineIndex]...)
+			fmt.Printf("read: %s\n", contents)
+			contents = contents[:0]
+			contents = append(contents, buffer[newlineIndex+1:numBytesRead]...)
+		} else {
+			contents = append(contents, buffer[:numBytesRead]...)
+		}
+	}
+	if len(contents) > 0 {
+		fmt.Printf("read: %s\n", contents)
 	}
 }
