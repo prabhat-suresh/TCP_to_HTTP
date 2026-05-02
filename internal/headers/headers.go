@@ -3,6 +3,7 @@ package headers
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -16,11 +17,12 @@ func isValidKey(key []byte) bool {
 		return false
 	}
 	for _, ch := range key {
-		if 'a' < ch && ch < 'z' || 'A' < ch && ch < 'Z' || '0' < ch && ch < '9' {
+		if 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || '0' <= ch && ch <= '9' {
 			continue
 		}
 		switch ch {
 		case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+			continue
 		default:
 			return false
 		}
@@ -36,7 +38,12 @@ func (h Headers) Get(key string) string {
 	return h[strings.ToLower(key)]
 }
 func (h Headers) Set(key, value string) {
-	h[strings.ToLower(key)] = value
+	key = strings.ToLower(key)
+	if v, ok := h[key]; ok {
+		h[key] = fmt.Sprintf("%v, %v", v, value)
+	} else {
+		h[key] = value
+	}
 }
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
@@ -56,6 +63,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 	key, value := headerParts[0], bytes.TrimSpace(headerParts[1])
 	if !isValidKey(key) {
+		fmt.Printf("Key: %s, len: %v\n", key, len(key))
 		return 0, false, errors.New("Invalid Key")
 	}
 	if bytes.ContainsAny(value, whitespaceChars) {
