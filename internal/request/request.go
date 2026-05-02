@@ -66,6 +66,7 @@ func (p *parserState) parse(data []byte) (*Request, error) {
 	return &req, nil
 }
 
+// TODO: convert this into a method
 func parseRequestLine(plainReqLine []byte) (*RequestLine, int, error) {
 	idx := bytes.Index(plainReqLine, []byte(httpSepCRLF))
 	if idx == -1 {
