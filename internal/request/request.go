@@ -44,6 +44,10 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	buf := make([]byte, initBufferSize)
 	for parserState.state != requestStateDone {
 		numBytesRead, err := reader.Read(buf)
+		if errors.Is(err, io.EOF) {
+			parserState.state = requestStateDone
+			break
+		}
 		if err != nil {
 			return nil, err
 		}
