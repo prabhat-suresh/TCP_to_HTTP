@@ -5,11 +5,13 @@ import (
 	"errors"
 	"httpfromtcp/internal/headers"
 	"io"
+	"strconv"
 )
 
 type Request struct {
 	RequestLine RequestLine
 	Headers     headers.Headers
+	Body        []byte
 }
 
 type RequestLine struct {
@@ -23,6 +25,7 @@ type parseState int
 const (
 	initialized parseState = iota
 	requestStateParsingHeaders
+	requestStateParsingBody
 	requestStateDone
 )
 
@@ -45,6 +48,9 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	for parserState.state != requestStateDone {
 		numBytesRead, err := reader.Read(buf)
 		if errors.Is(err, io.EOF) {
+			if len(req.Body) > 0 {
+				return nil, errors.New("Body shorter than reported content length")
+			}
 			parserState.state = requestStateDone
 			break
 		}
@@ -88,6 +94,24 @@ func (p *parserState) parse(req *Request, data []byte) error {
 		}
 		p.bytesToBeParsed = p.bytesToBeParsed[numBytesParsed:]
 		if done {
+			p.state = requestStateParsingBody
+		}
+	case requestStateParsingBody:
+		contentLen, ok := req.Headers.Get("Content-Length")
+		if !ok {
+			p.state = requestStateDone
+			break
+		}
+		contentLength, err := strconv.Atoi(contentLen)
+		if err != nil {
+			return errors.New("Invalid Content Length field")
+		}
+		req.Body = append(req.Body, p.bytesToBeParsed...)
+		p.bytesToBeParsed = make([]byte, 0, initBufferSize)
+		if len(req.Body) > contentLength {
+			return errors.New("Body longer than content length provided")
+		}
+		if len(req.Body) == contentLength {
 			p.state = requestStateDone
 		}
 	}

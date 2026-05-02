@@ -34,8 +34,9 @@ func NewHeaders() Headers {
 	return make(Headers)
 }
 
-func (h Headers) Get(key string) string {
-	return h[strings.ToLower(key)]
+func (h Headers) Get(key string) (val string, ok bool) {
+	val, ok = h[strings.ToLower(key)]
+	return
 }
 func (h Headers) Set(key, value string) {
 	key = strings.ToLower(key)
