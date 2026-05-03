@@ -5,6 +5,7 @@ import (
 	"errors"
 	"httpfromtcp/internal/headers"
 	"io"
+	"os"
 	"strconv"
 )
 
@@ -35,7 +36,7 @@ type parserState struct {
 }
 
 const httpSepCRLF = "\r\n"
-const initBufferSize = 8
+const initBufferSize = 1024
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	var req Request
@@ -47,7 +48,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	buf := make([]byte, initBufferSize)
 	for parserState.state != requestStateDone {
 		numBytesRead, err := reader.Read(buf)
-		if errors.Is(err, io.EOF) {
+		if errors.Is(err, io.EOF) || errors.Is(err, os.ErrDeadlineExceeded) {
 			if len(req.Body) > 0 {
 				return nil, errors.New("Body shorter than reported content length")
 			}

@@ -89,10 +89,10 @@ func (w *Writer) WriteTrailers(h headers.Headers) {
 	if !ok {
 		return
 	}
-	for _, tHeader := range strings.Split(trailerHeaders, ", ") {
+	for tHeader := range strings.SplitSeq(trailerHeaders, ", ") {
 		v, ok := h.Get(tHeader)
 		if !ok {
-			log.Fatal("%v trailer declared but no value assigned", tHeader)
+			log.Fatalf("%v trailer declared but no value assigned", tHeader)
 		}
 		_, err := w.Writer.Write(fmt.Appendf(nil, "%v: %v\r\n", tHeader, v))
 		if err != nil {

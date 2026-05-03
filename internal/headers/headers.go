@@ -70,9 +70,6 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		fmt.Printf("Key: %s, len: %v\n", key, len(key))
 		return 0, false, errors.New("Invalid Key")
 	}
-	if bytes.ContainsAny(value, whitespaceChars) {
-		return 0, false, errors.New("Whitespace found inside value")
-	}
 	h.Set(string(key), string(value))
 	return idx + len(httpSepCRLF), false, nil
 }

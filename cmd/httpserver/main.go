@@ -75,6 +75,13 @@ func handler(w *response.Writer, req *request.Request) {
 		return
 	}
 	switch req.RequestLine.RequestTarget {
+	case "/video":
+		video, _ := os.ReadFile("/Users/prabhat.suresh/Golang/TCP_to_HTTP/assets/vim.mp4")
+		w.WriteStatusLine(response.StatusOk)
+		h := headers.Headers{"Content-Type": "video/mp4"}
+		h.Set("Content-Length", fmt.Sprintf("%d", len(video)))
+		w.WriteHeaders(h)
+		w.WriteBody(video)
 	case "/yourproblem":
 		writeBadRequestResponse(w)
 	case "/myproblem":

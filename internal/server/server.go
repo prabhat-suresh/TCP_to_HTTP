@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
-	"io"
 	"log"
 	"net"
 	"strconv"
 	"sync/atomic"
+	"time"
 )
 
 type Server struct {
@@ -17,16 +17,7 @@ type Server struct {
 	closed   atomic.Bool
 }
 
-type HandlerError struct {
-	StatusCode response.StatusCode
-	Msg        string
-}
-
 type Handler func(w *response.Writer, req *request.Request)
-
-func (h *HandlerError) writeHandlerErrorTo(w io.Writer) {
-	w.Write(fmt.Appendf(nil, "HTTP/1.1 %v %v\r\n", h.StatusCode, h.Msg))
-}
 
 func Serve(handler Handler, port int) (*Server, error) {
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(port))
@@ -58,13 +49,11 @@ func (s *Server) listen() {
 }
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
+	// Require setting deadline as in my case the browser doesn't seem to send EOF
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		hErr := &HandlerError{
-			StatusCode: response.StatusBadRequest,
-			Msg:        err.Error(),
-		}
-		hErr.writeHandlerErrorTo(conn)
+		fmt.Printf("Connection Closed due to invalid request: %v\n", err.Error())
 		return
 	}
 	writer := response.Writer{Writer: conn}
