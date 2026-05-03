@@ -35,9 +35,7 @@ func Serve(handler Handler, port int) (*Server, error) {
 		return nil, err
 	}
 	server := &Server{listener: listener, handler: handler}
-	go func() {
-		server.listen()
-	}()
+	go server.listen()
 	return server, nil
 }
 
@@ -47,24 +45,27 @@ func (s *Server) Close() error {
 }
 func (s *Server) listen() {
 	for {
-		if s.closed.Load() {
-			break
-		}
 		conn, err := s.listener.Accept()
 		if err != nil {
-			log.Fatal("Error: ", err)
+			if s.closed.Load() {
+				return
+			}
+			log.Printf("Error accepting connection: %v", err)
+			continue
 		}
 		fmt.Println("Connection Accepted")
-		go func() {
-			s.handle(conn)
-		}()
+		go s.handle(conn)
 	}
 }
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		response.WriteStatusLine(conn, response.StatusBadRequest)
+		hErr := &HandlerError{
+			StatusCode: response.StatusBadRequest,
+			Msg:        err.Error(),
+		}
+		hErr.writeHandlerErrorTo(conn)
 		return
 	}
 	handlerBuf := bytes.NewBuffer([]byte{})
