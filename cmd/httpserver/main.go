@@ -1,24 +1,26 @@
 package main
 
 import (
+	"errors"
 	"httpfromtcp/internal/headers"
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
 	"httpfromtcp/internal/server"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 )
 
 const port = 42069
 
-func handler(w *response.Writer, req *request.Request) {
-	switch req.RequestLine.RequestTarget {
-	case "/yourproblem":
-		w.WriteStatusLine(response.StatusBadRequest)
-		w.WriteHeaders(headers.Headers{"Content-Type": "text/html"})
-		w.WriteBody([]byte(`<html>
+func writeBadRequestResponse(w *response.Writer) {
+	w.WriteStatusLine(response.StatusBadRequest)
+	w.WriteHeaders(headers.Headers{"Content-Type": "text/html"})
+	w.WriteBody([]byte(`<html>
   <head>
     <title>400 Bad Request</title>
   </head>
@@ -27,6 +29,45 @@ func handler(w *response.Writer, req *request.Request) {
     <p>Your request honestly kinda sucked.</p>
   </body>
 </html>`))
+}
+
+func proxy(w *response.Writer, req *request.Request) {
+	suffix := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/")
+	resp, err := http.Get("https://httpbin.org/" + suffix)
+	if err != nil {
+		log.Print("Couldn't get http response from httpbin.org")
+		writeBadRequestResponse(w)
+		return
+	}
+	w.WriteStatusLine(response.StatusOk)
+	req.Headers.Delete("Content-Length")
+	req.Headers.Set("Transfer-Encoding", "chunked")
+	w.WriteHeaders(req.Headers)
+	body := resp.Body
+	buf := make([]byte, 1024)
+	for {
+		n, err := body.Read(buf)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			log.Print("Error reading http response's body from httpbin.org")
+			return
+		}
+		log.Printf("%v bytes read from httpbin.org:\n", n)
+		w.WriteChunkedBody(buf[:n])
+	}
+	w.WriteChunkedBodyDone()
+}
+
+func handler(w *response.Writer, req *request.Request) {
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
+		proxy(w, req)
+		return
+	}
+	switch req.RequestLine.RequestTarget {
+	case "/yourproblem":
+		writeBadRequestResponse(w)
 	case "/myproblem":
 		w.WriteStatusLine(response.StatusInternalServerError)
 		w.WriteHeaders(headers.Headers{"Content-Type": "text/html"})

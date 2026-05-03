@@ -61,3 +61,20 @@ func (w *Writer) WriteHeaders(headers headers.Headers) error {
 func (w *Writer) WriteBody(p []byte) (int, error) {
 	return w.Writer.Write(p)
 }
+
+func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
+	lineLen1, err := w.Writer.Write(fmt.Appendf(nil, "%x\r\n", len(p)))
+	if err != nil {
+		return 0, err
+	}
+	lineLen2, err := w.Writer.Write(p)
+	if err != nil {
+		return 0, err
+	}
+	w.Writer.Write([]byte("\r\n"))
+	return lineLen1 + lineLen2 + len("\r\n"), nil
+}
+
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+	return w.Writer.Write([]byte("0\r\n\r\n"))
+}

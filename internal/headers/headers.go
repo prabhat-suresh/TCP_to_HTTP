@@ -46,6 +46,9 @@ func (h Headers) Set(key, value string) {
 		h[key] = value
 	}
 }
+func (h Headers) Delete(key string) {
+	delete(h, strings.ToLower(key))
+}
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	idx := bytes.Index(data, []byte(httpSepCRLF))
