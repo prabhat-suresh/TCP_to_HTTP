@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"httpfromtcp/internal/headers"
 	"io"
+	"log"
 	"strconv"
+	"strings"
 )
 
 type StatusCode int
@@ -75,6 +77,26 @@ func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
 	return lineLen1 + lineLen2 + len("\r\n"), nil
 }
 
-func (w *Writer) WriteChunkedBodyDone() (int, error) {
-	return w.Writer.Write([]byte("0\r\n\r\n"))
+func (w *Writer) WriteChunkedBodyDone(h headers.Headers) (int, error) {
+	w.Writer.Write([]byte("0\r\n"))
+	w.WriteTrailers(h)
+	w.Writer.Write([]byte("\r\n"))
+	return 0, nil
+}
+
+func (w *Writer) WriteTrailers(h headers.Headers) {
+	trailerHeaders, ok := h.Get("Trailer")
+	if !ok {
+		return
+	}
+	for _, tHeader := range strings.Split(trailerHeaders, ", ") {
+		v, ok := h.Get(tHeader)
+		if !ok {
+			log.Fatal("%v trailer declared but no value assigned", tHeader)
+		}
+		_, err := w.Writer.Write(fmt.Appendf(nil, "%v: %v\r\n", tHeader, v))
+		if err != nil {
+			return
+		}
+	}
 }

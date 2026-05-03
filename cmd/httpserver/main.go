@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"httpfromtcp/internal/headers"
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
@@ -42,9 +44,12 @@ func proxy(w *response.Writer, req *request.Request) {
 	w.WriteStatusLine(response.StatusOk)
 	req.Headers.Delete("Content-Length")
 	req.Headers.Set("Transfer-Encoding", "chunked")
+	req.Headers.Set("Trailer", "X-Content-SHA256")
+	req.Headers.Set("Trailer", "X-Content-Length")
 	w.WriteHeaders(req.Headers)
 	body := resp.Body
 	buf := make([]byte, 1024)
+	fullResponse := make([]byte, 0, 1024)
 	for {
 		n, err := body.Read(buf)
 		if err != nil {
@@ -56,8 +61,12 @@ func proxy(w *response.Writer, req *request.Request) {
 		}
 		log.Printf("%v bytes read from httpbin.org:\n", n)
 		w.WriteChunkedBody(buf[:n])
+		fullResponse = append(fullResponse, buf...)
 	}
-	w.WriteChunkedBodyDone()
+	hash := sha256.Sum256(fullResponse)
+	req.Headers.Set("X-Content-SHA256", fmt.Sprintf("%x", hash))
+	req.Headers.Set("X-Content-Length", fmt.Sprintf("%d", len(fullResponse)))
+	w.WriteChunkedBodyDone(req.Headers)
 }
 
 func handler(w *response.Writer, req *request.Request) {
