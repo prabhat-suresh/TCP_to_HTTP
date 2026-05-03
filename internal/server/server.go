@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
@@ -23,7 +22,7 @@ type HandlerError struct {
 	Msg        string
 }
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request)
 
 func (h *HandlerError) writeHandlerErrorTo(w io.Writer) {
 	w.Write(fmt.Appendf(nil, "HTTP/1.1 %v %v\r\n", h.StatusCode, h.Msg))
@@ -68,15 +67,7 @@ func (s *Server) handle(conn net.Conn) {
 		hErr.writeHandlerErrorTo(conn)
 		return
 	}
-	handlerBuf := bytes.NewBuffer([]byte{})
-	handlerError := s.handler(handlerBuf, req)
-	if handlerError != nil {
-		handlerError.writeHandlerErrorTo(conn)
-		fmt.Println("Connection Closed")
-		return
-	}
-	response.WriteStatusLine(conn, response.StatusOk)
-	response.WriteHeaders(conn, response.GetDefaultHeaders(handlerBuf.Len()))
-	conn.Write(handlerBuf.Bytes())
+	writer := response.Writer{Writer: conn}
+	s.handler(&writer, req)
 	fmt.Println("Connection Closed")
 }
