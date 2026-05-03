@@ -76,12 +76,22 @@ func handler(w *response.Writer, req *request.Request) {
 	}
 	switch req.RequestLine.RequestTarget {
 	case "/video":
-		video, _ := os.ReadFile("/Users/prabhat.suresh/Golang/TCP_to_HTTP/assets/vim.mp4")
+		video, _ := os.Open("assets/vim.mp4")
 		w.WriteStatusLine(response.StatusOk)
-		h := headers.Headers{"Content-Type": "video/mp4"}
-		h.Set("Content-Length", fmt.Sprintf("%d", len(video)))
+		h := headers.Headers{"Content-Type": "video/mp4", "Transfer-Encoding": "chunked"}
 		w.WriteHeaders(h)
-		w.WriteBody(video)
+		buf := make([]byte, 1024)
+		for {
+			n, err := video.Read(buf)
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				return
+			}
+			w.WriteChunkedBody(buf[:n])
+		}
+		w.WriteChunkedBodyDone(h)
 	case "/yourproblem":
 		writeBadRequestResponse(w)
 	case "/myproblem":
