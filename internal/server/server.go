@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"httpfromtcp/internal/response"
 	"log"
 	"net"
 	"strconv"
@@ -46,6 +47,7 @@ func (s *Server) listen() {
 }
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
-	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!\n"))
+	response.WriteStatusLine(conn, response.StatusOk)
+	response.WriteHeaders(conn, response.GetDefaultHeaders(0))
 	fmt.Println("Connection Closed")
 }
